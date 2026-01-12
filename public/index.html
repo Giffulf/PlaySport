@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlaySport - Ваш персональный спортивный трекер</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a0ca3;
+            --secondary: #f72585;
+            --accent: #4cc9f0;
+            --success: #4ade80;
+            --warning: #f9c74f;
+            --danger: #e63946;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+            --gray-light: #e9ecef;
+            --border-radius: 12px;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            min-height: 100vh;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Auth Page Styles */
+        #authApp {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(rgba(67, 97, 238, 0.05), rgba(58, 12, 163, 0.05));
+        }
+
+        .auth-container {
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            padding: 40px 30px;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo span {
+            color: var(--secondary);
+        }
+
+        .logo p {
+            color: var(--gray);
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .auth-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 200px;
+            justify-content: center;
+        }
+
+        .login-btn {
+            background: var(--primary);
+            color: white;
+        }
+
+        .login-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.2);
+        }
+
+        .register-btn {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        .register-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.2);
+        }
+
+        .features {
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-light);
+        }
+
+        .features p {
+            color: var(--gray);
+            font-size: 1rem;
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            width: 90%;
+            max-width: 450px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 25px;
+            border-bottom: 1px solid var(--gray-light);
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--gray-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .close-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            color: var(--dark);
+        }
+
+        .modal-subtitle {
+            color: var(--gray);
+            font-size: 0.95rem;
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .password-container {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--gray);
+            transition: var(--transition);
+        }
+
+        .toggle-password:hover {
+            color: var(--primary);
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: var(--gray);
+        }
+
+        .forgot-password {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+
+        .forgot-password:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.2);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .modal-footer {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-light);
+            text-align: center;
+            color: var(--gray);
+        }
+
+        .switch-auth {
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .switch-auth:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        /* Dashboard Styles */
+        #dashboardApp {
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+
+        .header .logo h1 {
+            font-size: 2rem;
+            margin: 0;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .notification-btn, .user-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+        }
+
+        .notification-btn:hover, .user-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Dashboard Stats */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-header {
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: var(--dark);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        /* Progress Ring */
+        .progress-ring {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+        }
+
+        .ring-bg, .ring-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        .ring-bg {
+            background: var(--gray-light);
+        }
+
+        .ring-progress {
+            clip-path: circle(50% at 50% 50%);
+        }
+
+        .ring-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 992px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .workout-section, .activity-feed, .goals-section {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--dark);
+        }
+
+        .view-all {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .view-all:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        /* Workout List */
+        .workout-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .workout-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            background: var(--light);
+            transition: var(--transition);
+        }
+
+        .workout-item:hover {
+            background: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            transform: translateX(5px);
+        }
+
+        .workout-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            margin-right: 15px;
+        }
+
+        .workout-info {
+            flex: 1;
+        }
+
+        .workout-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: var(--dark);
+        }
+
+        .workout-details {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        .workout-actions {
+            margin-left: 10px;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .action-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        /* Activity Feed */
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+            margin-bottom: 10px;
+        }
+
+        .activity-item:hover {
+            background: var(--light);
+        }
+
+        .activity-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            margin-right: 15px;
+            object-fit: cover;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-text {
+            font-weight: 500;
+            margin-bottom: 3px;
+            color: var(--dark);
+        }
+
+        .activity-time {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        /* Goals Section */
+        .goals-section {
+            margin-bottom: 40px;
+        }
+
+        .goals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .goal-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            background: var(--light);
+            transition: var(--transition);
+        }
+
+        .goal-item:hover {
+            background: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .goal-check {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--gray);
+            border-radius: 6px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .goal-check.completed {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .goal-check i {
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .goal-check.completed i {
+            opacity: 1;
+        }
+
+        .goal-text {
+            flex: 1;
+            transition: var(--transition);
+        }
+
+        .goal-text.completed {
+            text-decoration: line-through;
+            color: var(--gray);
+            opacity: 0.7;
+        }
+
+        .add-goal {
+            display: flex;
+            gap: 10px;
+        }
+
+        .goal-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .goal-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .add-goal-btn {
+            padding: 12px 25px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+
+        .add-goal-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .auth-buttons {
+                flex-direction: column;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .add-goal {
+                flex-direction: column;
+            }
+            
+            .add-goal-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Приложение Vue.js -->
+    <div id="app">
+        <!-- Компонент авторизации -->
+        <div id="authApp" v-if="!isLoggedIn">
+            <div class="auth-container">
+                <div class="logo">
+                    <h1>Play<span>Sport</span></h1>
+                    <p>Ваш персональный спортивный трекер</p>
+                </div>
+                
+                <div class="auth-buttons">
+                    <button class="auth-btn login-btn" @click="openModal('loginModal')">
+                        <i class="fas fa-sign-in-alt"></i> Войти в аккаунт
+                    </button>
+                    <button class="auth-btn register-btn" @click="openModal('registerModal')">
+                        <i class="fas fa-user-plus"></i> Создать аккаунт
+                    </button>
+                </div>
+                
+                <div class="features">
+                    <p>Начните свой путь к здоровому образу жизни вместе с PlaySport</p>
+                </div>
+            </div>
+
+            <!-- Модальное окно входа -->
+            <div id="loginModal" class="modal" v-show="activeModal === 'loginModal'">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div class="close-btn" @click="closeModal">
+                            <i class="fas fa-times"></i>
+                        </div>
+                        <h2 class="modal-title">Вход в аккаунт</h2>
+                        <p class="modal-subtitle">Войдите, чтобы продолжить тренировки</p>
+                    </div>
+                    <div class="modal-body">
+                        <form id="loginForm" @submit.prevent="handleLogin">
+                            <div class="form-group">
+                                <label class="form-label" for="loginEmail">Email</label>
+                                <input type="email" class="form-input" id="loginEmail" v-model="loginForm.email" placeholder="Ваш email" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="loginPassword">Пароль</label>
+                                <div class="password-container">
+                                    <input :type="loginForm.showPassword ? 'text' : 'password'" class="form-input" id="loginPassword" v-model="loginForm.password" placeholder="Ваш пароль" required>
+                                    <span class="toggle-password" @click="togglePasswordVisibility('login')">
+                                        <i :class="loginForm.showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="form-options">
+                                <label class="remember-me">
+                                    <input type="checkbox" v-model="loginForm.rememberMe"> Запомнить меня
+                                </label>
+                                <a href="#" class="forgot-password">Забыли пароль?</a>
+                            </div>
+                            <button type="submit" class="submit-btn" :disabled="loading">
+                                <span v-if="loading">Загрузка...</span>
+                                <span v-else>Войти</span>
+                            </button>
+                        </form>
+                        
+                        <div class="modal-footer">
+                            <p>Нет аккаунта? <span class="switch-auth" @click="switchToRegister">Зарегистрироваться</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Модальное окно регистрации -->
+            <div id="registerModal" class="modal" v-show="activeModal === 'registerModal'">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div class="close-btn" @click="closeModal">
+                            <i class="fas fa-times"></i>
+                        </div>
+                        <h2 class="modal-title">Создание аккаунта</h2>
+                        <p class="modal-subtitle">Присоединяйтесь к сообществу PlaySport</p>
+                    </div>
+                    <div class="modal-body">
+                        <form id="registerForm" @submit.prevent="handleRegister">
+                            <div class="form-group">
+                                <label class="form-label" for="registerName">Имя</label>
+                                <input type="text" class="form-input" id="registerName" v-model="registerForm.name" placeholder="Ваше имя" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="registerEmail">Email</label>
+                                <input type="email" class="form-input" id="registerEmail" v-model="registerForm.email" placeholder="Ваш email" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="registerPassword">Пароль</label>
+                                <div class="password-container">
+                                    <input :type="registerForm.showPassword ? 'text' : 'password'" class="form-input" id="registerPassword" v-model="registerForm.password" placeholder="Придумайте пароль" required>
+                                    <span class="toggle-password" @click="togglePasswordVisibility('register')">
+                                        <i :class="registerForm.showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="registerConfirmPassword">Подтверждение пароля</label>
+                                <div class="password-container">
+                                    <input :type="registerForm.showConfirmPassword ? 'text' : 'password'" class="form-input" id="registerConfirmPassword" v-model="registerForm.confirmPassword" placeholder="Повторите пароль" required>
+                                    <span class="toggle-password" @click="toggleConfirmPasswordVisibility">
+                                        <i :class="registerForm.showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="form-options">
+                                <label class="remember-me">
+                                    <input type="checkbox" v-model="registerForm.agreeTerms" required> Я согласен с условиями использования
+                                </label>
+                            </div>
+                            <button type="submit" class="submit-btn" :disabled="loading">
+                                <span v-if="loading">Регистрация...</span>
+                                <span v-else>Создать аккаунт</span>
+                            </button>
+                        </form>
+                        
+                        <div class="modal-footer">
+                            <p>Уже есть аккаунт? <span class="switch-auth" @click="switchToLogin">Войти</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Главная панель управления -->
+        <div id="dashboardApp" v-else>
+            <div class="container">
+                <!-- Header -->
+                <div class="header">
+                    <div class="logo">
+                        <h1>Play<span>Sport</span></h1>
+                    </div>
+                    <div class="user-actions">
+                        <div class="notification-btn">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="user-btn" @click="logout">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard -->
+                <div class="dashboard">
+                    <!-- Stats Card 1 -->
+                    <div class="stats-card">
+                        <div class="card-header">
+                            <div class="card-title">Активных тренировок</div>
+                        </div>
+                        <div class="stat-value">{{ stats.activeWorkouts }}</div>
+                        <div class="stat-label">+2 с прошлой недели</div>
+                    </div>
+
+                    <!-- Stats Card 2 -->
+                    <div class="stats-card">
+                        <div class="card-header">
+                            <div class="card-title">Сожжено калорий</div>
+                        </div>
+                        <div class="stat-value">{{ formatNumber(stats.caloriesBurned) }}</div>
+                        <div class="stat-label">Цель: 5,000 ккал</div>
+                    </div>
+
+                    <!-- Stats Card 3 -->
+                    <div class="stats-card">
+                        <div class="card-header">
+                            <div class="card-title">Прогресс месяца</div>
+                        </div>
+                        <div class="progress-ring">
+                            <div class="ring-bg"></div>
+                            <div class="ring-progress" :style="{ background: `conic-gradient(var(--primary) 0%, var(--primary) ${stats.monthProgress}%, var(--gray-light) ${stats.monthProgress}%, var(--gray-light) 100%)` }"></div>
+                            <div class="ring-value">{{ stats.monthProgress }}%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="main-content">
+                    <!-- Workout Section -->
+                    <div class="workout-section">
+                        <div class="section-header">
+                            <h2 class="section-title">Мои тренировки</h2>
+                            <a href="#" class="view-all" @click.prevent="loadWorkouts">Обновить</a>
+                        </div>
+                        <div class="workout-list">
+                            <!-- Workout Item -->
+                            <div class="workout-item" v-for="workout in workouts" :key="workout.id">
+                                <div class="workout-icon" :style="{ background: workout.color }">
+                                    <i :class="workout.icon"></i>
+                                </div>
+                                <div class="workout-info">
+                                    <div class="workout-name">{{ workout.name }}</div>
+                                    <div class="workout-details">{{ workout.details }}</div>
+                                </div>
+                                <div class="workout-actions">
+                                    <div class="action-btn" @click="startWorkout(workout.id)">
+                                        <i class="fas fa-play"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activity Feed -->
+                    <div class="activity-feed">
+                        <div class="section-header">
+                            <h2 class="section-title">Активность</h2>
+                            <a href="#" class="view-all" @click.prevent="loadActivities">Обновить</a>
+                        </div>
+                        <!-- Activity Item -->
+                        <div class="activity-item" v-for="activity in activities" :key="activity.id">
+                            <img :src="activity.avatar" alt="User" class="activity-avatar">
+                            <div class="activity-content">
+                                <div class="activity-text">{{ activity.text }}</div>
+                                <div class="activity-time">{{ activity.time }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Goals Section -->
+                <div class="goals-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Мои цели</h2>
+                        <a href="#" class="view-all" @click.prevent="loadGoals">Обновить</a>
+                    </div>
+                    <div class="goals-list">
+                        <!-- Goal Item -->
+                        <div class="goal-item" v-for="goal in goals" :key="goal.id">
+                            <div class="goal-check" :class="{ completed: goal.completed }" @click="toggleGoal(goal.id)">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="goal-text" :class="{ completed: goal.completed }">{{ goal.text }}</div>
+                        </div>
+                    </div>
+                    <div class="add-goal">
+                        <input type="text" class="goal-input" v-model="newGoal" placeholder="Добавить новую цель..." @keyup.enter="addGoal">
+                        <button class="add-goal-btn" @click="addGoal">Добавить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+        
+        createApp({
+            setup() {
+                const isLoggedIn = ref(false);
+                const loading = ref(false);
+                
+                // Auth functionality
+                const activeModal = ref(null);
+                
+                const loginForm = ref({
+                    email: '',
+                    password: '',
+                    rememberMe: false,
+                    showPassword: false
+                });
+                
+                const registerForm = ref({
+                    name: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    agreeTerms: false,
+                    showPassword: false,
+                    showConfirmPassword: false
+                });
+                
+                const openModal = (modalId) => {
+                    activeModal.value = modalId;
+                };
+                
+                const closeModal = () => {
+                    activeModal.value = null;
+                };
+                
+                const switchToRegister = () => {
+                    activeModal.value = 'registerModal';
+                };
+                
+                const switchToLogin = () => {
+                    activeModal.value = 'loginModal';
+                };
+                
+                const togglePasswordVisibility = (formType) => {
+                    if (formType === 'login') {
+                        loginForm.value.showPassword = !loginForm.value.showPassword;
+                    } else {
+                        registerForm.value.showPassword = !registerForm.value.showPassword;
+                    }
+                };
+                
+                const toggleConfirmPasswordVisibility = () => {
+                    registerForm.value.showConfirmPassword = !registerForm.value.showConfirmPassword;
+                };
+                
+                const handleLogin = async () => {
+                    if (!loginForm.value.email || !loginForm.value.password) {
+                        alert('Заполните все поля');
+                        return;
+                    }
+                    
+                    loading.value = true;
+                    
+                    // Демо-авторизация
+                    setTimeout(() => {
+                        isLoggedIn.value = true;
+                        closeModal();
+                        loadDashboardData();
+                        loading.value = false;
+                    }, 1000);
+                };
+                
+                const handleRegister = async () => {
+                    if (!registerForm.value.name || !registerForm.value.email || !registerForm.value.password) {
+                        alert('Заполните все поля');
+                        return;
+                    }
+                    
+                    if (registerForm.value.password !== registerForm.value.confirmPassword) {
+                        alert('Пароли не совпадают!');
+                        return;
+                    }
+                    
+                    if (!registerForm.value.agreeTerms) {
+                        alert('Необходимо согласиться с условиями использования');
+                        return;
+                    }
+                    
+                    loading.value = true;
+                    
+                    // Демо-регистрация
+                    setTimeout(() => {
+                        alert('Регистрация успешна! Теперь выполните вход.');
+                        switchToLogin();
+                        
+                        // Очищаем форму регистрации
+                        registerForm.value = {
+                            name: '',
+                            email: '',
+                            password: '',
+                            confirmPassword: '',
+                            agreeTerms: false,
+                            showPassword: false,
+                            showConfirmPassword: false
+                        };
+                        loading.value = false;
+                    }, 1000);
+                };
+                
+                const logout = () => {
+                    isLoggedIn.value = false;
+                };
+                
+                // Dashboard functionality
+                const stats = ref({
+                    activeWorkouts: 12,
+                    caloriesBurned: 3842,
+                    monthProgress: 75
+                });
+                
+                const workouts = ref([
+                    {
+                        id: 1,
+                        name: "Велосипедная прогулка",
+                        details: "15 км • 45 минут • 320 ккал",
+                        icon: "fas fa-bicycle",
+                        color: "linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%)"
+                    },
+                    {
+                        id: 2,
+                        name: "Утренняя пробежка",
+                        details: "5 км • 28 минут • 280 ккал",
+                        icon: "fas fa-running",
+                        color: "linear-gradient(135deg, #f72585 0%, #b5179e 100%)"
+                    },
+                    {
+                        id: 3,
+                        name: "Силовая тренировка",
+                        details: "Грудь и трицепс • 55 минут • 380 ккал",
+                        icon: "fas fa-dumbbell",
+                        color: "linear-gradient(135deg, #4cc9f0 0%, #4895ef 100%)"
+                    }
+                ]);
+                
+                const activities = ref([
+                    {
+                        id: 1,
+                        text: "Мария завершила силовую тренировку",
+                        time: "10 минут назад",
+                        avatar: "https://ui-avatars.com/api/?name=Мария+И.&background=f72585&color=fff"
+                    },
+                    {
+                        id: 2,
+                        text: "Алексей установил новый рекорд в беге",
+                        time: "45 минут назад",
+                        avatar: "https://ui-avatars.com/api/?name=Алексей+К.&background=4361ee&color=fff"
+                    },
+                    {
+                        id: 3,
+                        text: "Ольга достигла своей цели по отжиманиям",
+                        time: "2 часа назад",
+                        avatar: "https://ui-avatars.com/api/?name=Ольга+С.&background=3a0ca3&color=fff"
+                    }
+                ]);
+                
+                const goals = ref([
+                    { id: 1, text: "Прибежать 5 км без остановки", completed: false },
+                    { id: 2, text: "30 отжиманий за подход", completed: true },
+                    { id: 3, text: "Сбросить 5 кг к декабрю", completed: false },
+                    { id: 4, text: "Посещать спортзал 3 раза в неделю", completed: true }
+                ]);
+                
+                const newGoal = ref('');
+                
+                const formatNumber = (num) => {
+                    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                };
+                
+                const loadDashboardData = () => {
+                    // Загружаем демо-данные
+                    stats.value = {
+                        activeWorkouts: 12,
+                        caloriesBurned: 3842,
+                        monthProgress: 75
+                    };
+                };
+                
+                const loadWorkouts = () => {
+                    // Обновляем тренировки (в демо просто перемешиваем)
+                    workouts.value = [...workouts.value].sort(() => Math.random() - 0.5);
+                };
+                
+                const loadActivities = () => {
+                    // Обновляем активности (в демо просто перемешиваем)
+                    activities.value = [...activities.value].sort(() => Math.random() - 0.5);
+                };
+                
+                const loadGoals = () => {
+                    // Обновляем цели (в демо просто перемешиваем)
+                    goals.value = [...goals.value].sort(() => Math.random() - 0.5);
+                };
+                
+                const startWorkout = (workoutId) => {
+                    const workout = workouts.value.find(w => w.id === workoutId);
+                    if (workout) {
+                        alert(`Запуск тренировки: ${workout.name}`);
+                    }
+                };
+                
+                const toggleGoal = (goalId) => {
+                    const goal = goals.value.find(g => g.id === goalId);
+                    if (goal) {
+                        goal.completed = !goal.completed;
+                    }
+                };
+                
+                const addGoal = () => {
+                    if (newGoal.value.trim()) {
+                        goals.value.push({
+                            id: goals.value.length + 1,
+                            text: newGoal.value.trim(),
+                            completed: false
+                        });
+                        newGoal.value = '';
+                    }
+                };
+                
+                return {
+                    isLoggedIn,
+                    loading,
+                    activeModal,
+                    loginForm,
+                    registerForm,
+                    openModal,
+                    closeModal,
+                    switchToRegister,
+                    switchToLogin,
+                    togglePasswordVisibility,
+                    toggleConfirmPasswordVisibility,
+                    handleLogin,
+                    handleRegister,
+                    logout,
+                    stats,
+                    workouts,
+                    activities,
+                    goals,
+                    newGoal,
+                    formatNumber,
+                    loadWorkouts,
+                    loadActivities,
+                    loadGoals,
+                    startWorkout,
+                    toggleGoal,
+                    addGoal
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
