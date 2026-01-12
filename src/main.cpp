@@ -1,26 +1,30 @@
 #include <iostream>
-#include <thread>
-#include <chrono>
-#include <map>
 #include <string>
+#include <map>
+#include <sstream>
+#include <fstream>
+#include <thread>
 #include <mutex>
-#include <functional>
 #include <queue>
 #include <condition_variable>
 #include <vector>
+#include <atomic>
+#include <functional>
 #include <memory>
-#include <sstream>
-#include <fstream>
 #include <algorithm>
-#include <atomic>  
+
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
 #pragma comment(lib, "ws2_32.lib")
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
 
-// ПАТТЕРНЫ ПРОЕКТИРОВАНИЯ 
-
-// 1. SINGLETON (Одиночка) 
+// =========== КОНФИГУРАЦИЯ ===========
 class Config {
 private:
     static Config* instance;
@@ -30,7 +34,6 @@ private:
     Config() {
         settings["port"] = "8080";
         settings["static_dir"] = "public";
-        settings["db_path"] = "playsport.db";
     }
     
 public:
@@ -40,766 +43,443 @@ public:
         return instance;
     }
     
-    std::string get(const std::string& key) {
+    std::string get(const std::string& key, const std::string& defaultValue = "") {
         auto it = settings.find(key);
-        if (it != settings.end()) return it->second;
-        return "";
+        return it != settings.end() ? it->second : defaultValue;
     }
     
-    void set(const std::string& key, const std::string& value) {
-        settings[key] = value;
-    }
+    int getPort() { return std::stoi(get("port", "8080")); }
 };
 
 Config* Config::instance = nullptr;
 std::mutex Config::mutex;
 
-// 2. FACTORY (Фабрика)
-class Workout {
-private:
-    int id;
-    std::string name;
-    int duration;
-    int calories;
-    std::string type;
-    
-public:
-    Workout() : id(0), duration(0), calories(0) {}
-    
-    void setId(int i) { id = i; }
-    void setName(const std::string& n) { name = n; }
-    void setDuration(int d) { duration = d; }
-    void setCalories(int c) { calories = c; }
-    void setType(const std::string& t) { type = t; }
-    
-    std::string toJson() const {
-        std::stringstream json;
-        json << "{";
-        json << "\"id\":" << id << ",";
-        json << "\"name\":\"" << name << "\",";
-        json << "\"duration\":" << duration << ",";
-        json << "\"calories\":" << calories << ",";
-        json << "\"type\":\"" << type << "\"";
-        json << "}";
-        return json.str();
-    }
-};
-
-class WorkoutFactory {
-public:
-    static Workout createRunning(int minutes) {
-        Workout w;
-        w.setName("Running");
-        w.setDuration(minutes);
-        w.setCalories(minutes * 10);
-        w.setType("cardio");
-        return w;
-    }
-    
-    static Workout createCycling(int minutes) {
-        Workout w;
-        w.setName("Cycling");
-        w.setDuration(minutes);
-        w.setCalories(minutes * 8);
-        w.setType("cardio");
-        return w;
-    }
-    
-    static Workout createStrength(int minutes) {
-        Workout w;
-        w.setName("Strength Training");
-        w.setDuration(minutes);
-        w.setCalories(minutes * 7);
-        w.setType("strength");
-        return w;
-    }
-};
-
-// 3. OBSERVER (Наблюдатель)
-class NotificationService {
-private:
-    std::vector<std::function<void(const std::string&, const std::string&)>> observers;
-    std::mutex mutex;
-    
-public:
-    static NotificationService& getInstance() {
-        static NotificationService instance;
-        return instance;
-    }
-    
-    void subscribe(std::function<void(const std::string&, const std::string&)> observer) {
-        std::lock_guard<std::mutex> lock(mutex);
-        observers.push_back(observer);
-    }
-    
-    void notify(const std::string& event, const std::string& data) {
-        std::lock_guard<std::mutex> lock(mutex);
-        for (auto& observer : observers) {
-            observer(event, data);
-        }
-    }
-};
-
-// 4. STRATEGY (Стратегия)
-class AuthStrategy {
-public:
-    virtual ~AuthStrategy() = default;
-    virtual bool authenticate(const std::string& credentials) = 0;
-    virtual std::string getType() const = 0;
-};
-
-class JwtStrategy : public AuthStrategy {
-public:
-    bool authenticate(const std::string& credentials) override {
-        return credentials.find("Bearer ") == 0;
-    }
-    
-    std::string getType() const override {
-        return "JWT";
-    }
-};
-
-class BasicStrategy : public AuthStrategy {
-public:
-    bool authenticate(const std::string& credentials) override {
-        return credentials.find("Basic ") == 0;
-    }
-    
-    std::string getType() const override {
-        return "Basic";
-    }
-};
-
-// 5. PRODUCER-CONSUMER (Производитель-Потребитель) 
+// =========== ОЧЕРЕДЬ ЗАДАЧ ===========
 class TaskQueue {
 private:
     std::queue<std::function<void()>> tasks;
-    std::mutex mutex;
-    std::condition_variable cv;
+    std::mutex queueMutex;
+    std::condition_variable condition;
     std::vector<std::thread> workers;
     bool stop = false;
-    
+
 public:
-    TaskQueue(size_t numWorkers) {
-        for (size_t i = 0; i < numWorkers; ++i) {
+    TaskQueue(size_t numThreads = 2) {
+        for (size_t i = 0; i < numThreads; ++i) {
             workers.emplace_back([this]() {
                 while (true) {
                     std::function<void()> task;
                     {
-                        std::unique_lock<std::mutex> lock(mutex);
-                        cv.wait(lock, [this]() { return stop || !tasks.empty(); });
+                        std::unique_lock<std::mutex> lock(queueMutex);
+                        condition.wait(lock, [this] { 
+                            return stop || !tasks.empty(); 
+                        });
+                        
                         if (stop && tasks.empty()) return;
+                        
                         task = std::move(tasks.front());
                         tasks.pop();
                     }
+                    
                     if (task) task();
                 }
             });
         }
     }
-    
+
     ~TaskQueue() {
         {
-            std::lock_guard<std::mutex> lock(mutex);
+            std::unique_lock<std::mutex> lock(queueMutex);
             stop = true;
         }
-        cv.notify_all();
+        condition.notify_all();
+        
         for (auto& worker : workers) {
-            worker.join();
+            if (worker.joinable()) worker.join();
         }
     }
-    
+
     void enqueue(std::function<void()> task) {
         {
-            std::lock_guard<std::mutex> lock(mutex);
+            std::unique_lock<std::mutex> lock(queueMutex);
             tasks.push(task);
         }
-        cv.notify_one();
+        condition.notify_one();
     }
 };
 
-// 6. ADAPTER (Адаптер)
-class DataAdapter {
+// =========== JSON УТИЛИТЫ ===========
+class JsonUtils {
 public:
-    static std::string toFrontendFormat(const std::string& backendData, bool success = true) {
-        std::stringstream json;
-        json << "{";
-        json << "\"success\":" << (success ? "true" : "false") << ",";
-        json << "\"timestamp\":\"" << getCurrentTime() << "\",";
-        json << "\"data\":" << backendData;
-        json << "}";
-        return json.str();
+    static std::map<std::string, std::string> parseJson(const std::string& json) {
+        std::map<std::string, std::string> result;
+        std::string clean = json;
+        
+        // Упрощенный парсинг JSON
+        clean.erase(std::remove(clean.begin(), clean.end(), ' '), clean.end());
+        clean.erase(std::remove(clean.begin(), clean.end(), '\n'), clean.end());
+        clean.erase(std::remove(clean.begin(), clean.end(), '\r'), clean.end());
+        
+        if (clean.front() == '{') clean.erase(0, 1);
+        if (clean.back() == '}') clean.pop_back();
+        
+        size_t start = 0;
+        while (true) {
+            size_t comma = clean.find(',', start);
+            std::string pair;
+            
+            if (comma == std::string::npos) {
+                pair = clean.substr(start);
+            } else {
+                pair = clean.substr(start, comma - start);
+            }
+            
+            size_t colon = pair.find(':');
+            if (colon != std::string::npos) {
+                std::string key = pair.substr(0, colon);
+                std::string value = pair.substr(colon + 1);
+                
+                if (key.front() == '"' && key.back() == '"') 
+                    key = key.substr(1, key.length() - 2);
+                if (value.front() == '"' && value.back() == '"') 
+                    value = value.substr(1, value.length() - 2);
+                
+                result[key] = value;
+            }
+            
+            if (comma == std::string::npos) break;
+            start = comma + 1;
+        }
+        
+        return result;
     }
     
-    static std::string createApiResponse(const std::string& data, const std::string& contentType = "application/json") {
-        std::stringstream response;
-        response << "HTTP/1.1 200 OK\r\n";
-        response << "Content-Type: " << contentType << "\r\n";
-        response << "Access-Control-Allow-Origin: *\r\n";
-        response << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n";
-        response << "Access-Control-Allow-Headers: Content-Type\r\n";
-        response << "\r\n";
-        response << data;
-        return response.str();
+    static std::string createError(const std::string& message) {
+        return "{\"success\":false,\"error\":\"" + message + "\"}";
     }
     
-    static std::string createErrorResponse(const std::string& message, int code = 404) {
-        std::stringstream response;
-        response << "HTTP/1.1 " << code << " " << (code == 404 ? "Not Found" : "Bad Request") << "\r\n";
-        response << "Content-Type: application/json\r\n";
-        response << "Access-Control-Allow-Origin: *\r\n";
-        response << "\r\n";
-        response << "{\"success\":false,\"error\":\"" << message << "\"}";
-        return response.str();
-    }
-    
-private:
-    static std::string getCurrentTime() {
-        auto now = std::chrono::system_clock::now();
-        auto time = std::chrono::system_clock::to_time_t(now);
-        char buffer[80];
-        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
-        return buffer;
+    static std::string createSuccess(const std::string& data = "") {
+        if (data.empty()) return "{\"success\":true}";
+        return "{\"success\":true,\"data\":" + data + "}";
     }
 };
 
-// 7. FACADE (Фасад) 
-class ApiFacade {
-private:
-    Config* config;
-    TaskQueue taskQueue;
-    
-public:
-    ApiFacade() : config(Config::getInstance()), taskQueue(2) {}
-    
-    std::string handleApiRequest(const std::string& endpoint, const std::string& method, const std::string& body = "") {
-        if (endpoint == "/api/workouts" && method == "GET") {
-            return getWorkouts();
-        }
-        else if (endpoint == "/api/stats" && method == "GET") {
-            return getStats();
-        }
-        else if (endpoint == "/api/goals" && method == "GET") {
-            return getGoals();
-        }
-        else if (endpoint == "/api/users" && method == "GET") {
-            return getUsers();
-        }
-        else if (endpoint == "/api/login" && method == "POST") {
-            return login(body);
-        }
-        else if (endpoint == "/api/register" && method == "POST") {
-            return registerUser(body);
-        }
-        else {
-            return DataAdapter::toFrontendFormat("\"error\":\"Not found\"", false);
-        }
-    }
-    
-private:
-    std::string getWorkouts() {
-        std::vector<Workout> workouts = {
-            WorkoutFactory::createRunning(30),
-            WorkoutFactory::createCycling(45),
-            WorkoutFactory::createStrength(60)
-        };
-        
-        std::stringstream json;
-        json << "[";
-        for (size_t i = 0; i < workouts.size(); i++) {
-            workouts[i].setId(i + 1);
-            json << workouts[i].toJson();
-            if (i < workouts.size() - 1) json << ",";
-        }
-        json << "]";
-        
-        taskQueue.enqueue([workouts]() {
-            std::cout << "[BACKGROUND] Processed " << workouts.size() << " workouts\n";
-        });
-        
-        return DataAdapter::toFrontendFormat(json.str());
-    }
-    
-    std::string getStats() {
-        std::stringstream json;
-        json << "{";
-        json << "\"activeWorkouts\":12,";
-        json << "\"caloriesBurned\":3842,";
-        json << "\"monthProgress\":75,";
-        json << "\"totalDistance\":42.5";
-        json << "}";
-        return DataAdapter::toFrontendFormat(json.str());
-    }
-    
-    std::string getGoals() {
-        std::stringstream json;
-        json << "[";
-        json << "{\"id\":1,\"text\":\"Пробежать 5 км без остановки\",\"completed\":false},";
-        json << "{\"id\":2,\"text\":\"30 отжиманий за подход\",\"completed\":true},";
-        json << "{\"id\":3,\"text\":\"Сбросить 5 кг к декабрю\",\"completed\":false}";
-        json << "]";
-        return DataAdapter::toFrontendFormat(json.str());
-    }
-    
-    std::string getUsers() {
-        std::stringstream json;
-        json << "[";
-        json << "{\"id\":1,\"name\":\"Иван Петров\",\"email\":\"ivan@example.com\",\"activeWorkouts\":5},";
-        json << "{\"id\":2,\"name\":\"Мария Иванова\",\"email\":\"maria@example.com\",\"activeWorkouts\":3},";
-        json << "{\"id\":3,\"name\":\"Алексей Смирнов\",\"email\":\"alex@example.com\",\"activeWorkouts\":7}";
-        json << "]";
-        return DataAdapter::toFrontendFormat(json.str());
-    }
-    
-    std::string login(const std::string& body) {
-        // Парсим JSON из тела запроса
-        std::cout << "Login attempt with body: " << body << std::endl;
-        
-        std::stringstream json;
-        json << "{";
-        json << "\"success\":true,";
-        json << "\"token\":\"ps_token_123456\",";
-        json << "\"user\":{";
-        json << "\"id\":1,";
-        json << "\"name\":\"Иван Петров\",";
-        json << "\"email\":\"ivan@example.com\",";
-        json << "\"stats\":{";
-        json << "\"activeWorkouts\":5,";
-        json << "\"caloriesBurned\":2450,";
-        json << "\"monthProgress\":75";
-        json << "}";
-        json << "}";
-        json << "}";
-        return json.str();
-    }
-    
-    std::string registerUser(const std::string& body) {
-        std::cout << "Registration attempt with body: " << body << std::endl;
-        
-        std::stringstream json;
-        json << "{";
-        json << "\"success\":true,";
-        json << "\"message\":\"Регистрация успешна!\",";
-        json << "\"userId\":100,";
-        json << "\"email\":\"newuser@example.com\"";
-        json << "}";
-        return json.str();
-    }
-};
-
-// 8. MVC (Model-View-Controller) 
-class UserModel {
-private:
-    int id;
-    std::string name;
-    std::string email;
-    
-public:
-    UserModel(int i, const std::string& n, const std::string& e) 
-        : id(i), name(n), email(e) {}
-    
-    std::string toJson() const {
-        std::stringstream json;
-        json << "{";
-        json << "\"id\":" << id << ",";
-        json << "\"name\":\"" << name << "\",";
-        json << "\"email\":\"" << email << "\"";
-        json << "}";
-        return json.str();
-    }
-};
-
-class JsonView {
-public:
-    static std::string render(const std::string& data) {
-        return DataAdapter::toFrontendFormat(data);
-    }
-};
-
-class UserController {
-private:
-    std::vector<UserModel> users;
-    
-public:
-    UserController() {
-        users.emplace_back(1, "Иван Петров", "ivan@example.com");
-        users.emplace_back(2, "Мария Иванова", "maria@example.com");
-        users.emplace_back(3, "Алексей Смирнов", "alex@example.com");
-    }
-    
-    std::string getAllUsers() {
-        std::stringstream json;
-        json << "[";
-        for (size_t i = 0; i < users.size(); i++) {
-            json << users[i].toJson();
-            if (i < users.size() - 1) json << ",";
-        }
-        json << "]";
-        return JsonView::render(json.str());
-    }
-};
-
-// HTTP СЕРВЕР 
-
+// =========== HTTP СЕРВЕР ===========
 class HttpServer {
 private:
     int port;
     std::string publicDir;
+#ifdef _WIN32
     SOCKET serverSocket;
-    std::atomic<bool> running;
+#else
+    int serverSocket;
+#endif
+    std::atomic<bool> running{false};
     std::thread serverThread;
-    ApiFacade apiFacade;
-    
-    using Handler = std::function<std::string(const std::string&, 
-                                              const std::map<std::string, std::string>&,
-                                              const std::string&)>;
-    std::map<std::string, Handler> handlers;
-    
+    TaskQueue taskQueue;
+
 public:
-    HttpServer(int port = 8080, const std::string& publicDir = "public") 
-        : port(port), publicDir(publicDir), serverSocket(INVALID_SOCKET), running(false) {
-        
-        // Регистрируем обработчики по умолчанию
-        setupHandlers();
+    HttpServer(int port = 8080, const std::string& publicDir = "public")
+        : port(port), publicDir(publicDir)
+#ifdef _WIN32
+        , serverSocket(INVALID_SOCKET)
+#else
+        , serverSocket(-1)
+#endif
+        , taskQueue(4) {
     }
-    
-    ~HttpServer() {
-        stop();
-    }
-    
+
+    ~HttpServer() { stop(); }
+
     void start() {
-        // Инициализация Winsock
+#ifdef _WIN32
         WSADATA wsaData;
-        int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-        if (result != 0) {
-            std::cerr << "WSAStartup failed: " << result << std::endl;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            std::cerr << "WSAStartup failed" << std::endl;
             return;
         }
-        
-        // Создание сокета
-        serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+#endif
+
+        serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+#ifdef _WIN32
         if (serverSocket == INVALID_SOCKET) {
-            std::cerr << "Socket creation failed: " << WSAGetLastError() << std::endl;
+            std::cerr << "Socket creation failed" << std::endl;
             WSACleanup();
             return;
         }
-        
-        // Настройка сокета
+#else
+        if (serverSocket < 0) {
+            std::cerr << "Socket creation failed" << std::endl;
+            return;
+        }
+#endif
+
         int opt = 1;
+#ifdef _WIN32
         setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
-        
-        // Привязка сокета
+#else
+        setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#endif
+
         sockaddr_in serverAddr;
         serverAddr.sin_family = AF_INET;
         serverAddr.sin_addr.s_addr = INADDR_ANY;
         serverAddr.sin_port = htons(port);
-        
-        if (bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-            std::cerr << "Bind failed: " << WSAGetLastError() << std::endl;
-            closesocket(serverSocket);
-            WSACleanup();
+
+        if (bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+            std::cerr << "Bind failed" << std::endl;
+            closeSocket();
             return;
         }
-        
-        // Прослушивание
-        if (listen(serverSocket, SOMAXCONN) == SOCKET_ERROR) {
-            std::cerr << "Listen failed: " << WSAGetLastError() << std::endl;
-            closesocket(serverSocket);
-            WSACleanup();
+
+        if (listen(serverSocket, 10) < 0) {
+            std::cerr << "Listen failed" << std::endl;
+            closeSocket();
             return;
         }
-        
+
         running = true;
         serverThread = std::thread(&HttpServer::run, this);
-        
+
         std::cout << "HTTP Server started on port " << port << std::endl;
         std::cout << "Serving static files from: " << publicDir << std::endl;
     }
-    
+
     void stop() {
         running = false;
+        closeSocket();
+        if (serverThread.joinable()) {
+            serverThread.join();
+        }
+    }
+
+private:
+    void closeSocket() {
+#ifdef _WIN32
         if (serverSocket != INVALID_SOCKET) {
             closesocket(serverSocket);
             serverSocket = INVALID_SOCKET;
         }
-        if (serverThread.joinable()) {
-            serverThread.join();
-        }
         WSACleanup();
+#else
+        if (serverSocket >= 0) {
+            close(serverSocket);
+            serverSocket = -1;
+        }
+#endif
     }
-    
-private:
-    void setupHandlers() {
-        handlers["/api/workouts"] = [this](const std::string& method, 
-                                          const std::map<std::string, std::string>& headers,
-                                          const std::string& body) {
-            if (method == "GET") {
-                std::string data = apiFacade.handleApiRequest("/api/workouts", "GET");
-                return DataAdapter::createApiResponse(data);
-            }
-            return DataAdapter::createErrorResponse("Method not allowed");
-        };
-        
-        handlers["/api/stats"] = [this](const std::string& method,
-                                       const std::map<std::string, std::string>& headers,
-                                       const std::string& body) {
-            if (method == "GET") {
-                std::string data = apiFacade.handleApiRequest("/api/stats", "GET");
-                return DataAdapter::createApiResponse(data);
-            }
-            return DataAdapter::createErrorResponse("Method not allowed");
-        };
-        
-        handlers["/api/goals"] = [this](const std::string& method,
-                                       const std::map<std::string, std::string>& headers,
-                                       const std::string& body) {
-            if (method == "GET") {
-                std::string data = apiFacade.handleApiRequest("/api/goals", "GET");
-                return DataAdapter::createApiResponse(data);
-            }
-            return DataAdapter::createErrorResponse("Method not allowed");
-        };
-        
-        handlers["/api/users"] = [this](const std::string& method,
-                                       const std::map<std::string, std::string>& headers,
-                                       const std::string& body) {
-            if (method == "GET") {
-                std::string data = apiFacade.handleApiRequest("/api/users", "GET");
-                return DataAdapter::createApiResponse(data);
-            }
-            return DataAdapter::createErrorResponse("Method not allowed");
-        };
-        
-        handlers["/api/login"] = [this](const std::string& method,
-                                       const std::map<std::string, std::string>& headers,
-                                       const std::string& body) {
-            if (method == "POST") {
-                std::string data = apiFacade.handleApiRequest("/api/login", "POST", body);
-                return DataAdapter::createApiResponse("{\"success\":true,\"data\":" + data + "}");
-            }
-            return DataAdapter::createErrorResponse("Method not allowed");
-        };
-        
-        handlers["/api/register"] = [this](const std::string& method,
-                                          const std::map<std::string, std::string>& headers,
-                                          const std::string& body) {
-            if (method == "POST") {
-                std::string data = apiFacade.handleApiRequest("/api/register", "POST", body);
-                return DataAdapter::createApiResponse("{\"success\":true,\"data\":" + data + "}");
-            }
-            return DataAdapter::createErrorResponse("Method not allowed");
-        };
-    }
-    
-    std::string parseRequest(const std::string& request, 
-                            std::string& method, 
-                            std::string& path,
-                            std::map<std::string, std::string>& headers,
-                            std::string& body) {
-        std::istringstream stream(request);
-        std::string line;
-        
-        // Первая строка: метод и путь
-        if (std::getline(stream, line)) {
-            std::istringstream lineStream(line);
-            lineStream >> method >> path;
-        }
-        
-        // Заголовки
-        while (std::getline(stream, line) && line != "\r" && !line.empty()) {
-            size_t colonPos = line.find(':');
-            if (colonPos != std::string::npos) {
-                std::string key = line.substr(0, colonPos);
-                std::string value = line.substr(colonPos + 2);
-                // Убираем \r в конце
-                if (!value.empty() && value.back() == '\r') {
-                    value.pop_back();
-                }
-                headers[key] = value;
-            }
-        }
-        
-        // Тело
-        body.clear();
-        std::string contentLengthStr = headers["Content-Length"];
-        if (!contentLengthStr.empty()) {
-            int contentLength = std::stoi(contentLengthStr);
-            char* buffer = new char[contentLength + 1];
-            stream.read(buffer, contentLength);
-            buffer[contentLength] = '\0';
-            body = buffer;
-            delete[] buffer;
-        } else {
-            // Читаем остаток
-            while (std::getline(stream, line)) {
-                body += line + "\n";
-            }
-        }
-        
-        return "OK";
-    }
-    
-    std::string serveStaticFile(const std::string& path) {
-        std::string filePath = publicDir + (path == "/" ? "/index.html" : path);
-        
-        std::ifstream file(filePath, std::ios::binary);
-        if (!file) {
-            // Если файл не найден, пробуем index.html
-            filePath = publicDir + "/index.html";
-            file.open(filePath, std::ios::binary);
-            
-            if (!file) {
-                return DataAdapter::createErrorResponse("File not found");
-            }
-        }
+
+    std::string readFile(const std::string& path) {
+        std::ifstream file(path, std::ios::binary);
+        if (!file) return "";
         
         std::string content((std::istreambuf_iterator<char>(file)),
                            std::istreambuf_iterator<char>());
-        
-        std::string contentType = "text/plain";
-        std::string ext = filePath.substr(filePath.find_last_of('.') + 1);
-        
-        if (ext == "html") contentType = "text/html; charset=utf-8";
-        else if (ext == "css") contentType = "text/css";
-        else if (ext == "js") contentType = "application/javascript";
-        else if (ext == "json") contentType = "application/json";
-        
-        return DataAdapter::createApiResponse(content, contentType);
+        return content;
     }
-    
-    void handleClient(SOCKET clientSocket) {
-        char buffer[4096];
-        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+
+    std::string getContentType(const std::string& path) {
+        if (path.find(".html") != std::string::npos) return "text/html; charset=utf-8";
+        if (path.find(".css") != std::string::npos) return "text/css";
+        if (path.find(".js") != std::string::npos) return "application/javascript";
+        if (path.find(".json") != std::string::npos) return "application/json";
+        return "text/plain";
+    }
+
+    std::string createResponse(int status, const std::string& contentType, const std::string& body) {
+        std::stringstream response;
+        response << "HTTP/1.1 " << status << " " 
+                 << (status == 200 ? "OK" : "Not Found") << "\r\n";
+        response << "Content-Type: " << contentType << "\r\n";
+        response << "Content-Length: " << body.length() << "\r\n";
+        response << "Access-Control-Allow-Origin: *\r\n";
+        response << "Connection: close\r\n";
+        response << "\r\n";
+        response << body;
+        return response.str();
+    }
+
+    std::string handleApiRequest(const std::string& method, const std::string& path, const std::string& body) {
+        // Login
+        if (path == "/api/login" && method == "POST") {
+            auto data = JsonUtils::parseJson(body);
+            std::string email = data["email"];
+            std::string password = data["password"];
+            
+            if (email.empty() || password.empty()) {
+                return JsonUtils::createError("Email and password required");
+            }
+            
+            if (email == "test@example.com" && password == "password") {
+                std::string userJson = R"({"id":1,"name":"Test User","email":"test@example.com"})";
+                return R"({"success":true,"token":"demo_token","user":)" + userJson + "}";
+            }
+            
+            return JsonUtils::createError("Invalid credentials");
+        }
         
-        if (bytesReceived > 0) {
-            buffer[bytesReceived] = '\0';
+        // Register
+        else if (path == "/api/register" && method == "POST") {
+            auto data = JsonUtils::parseJson(body);
+            
+            if (data["email"].empty() || data["password"].empty() || data["name"].empty()) {
+                return JsonUtils::createError("All fields are required");
+            }
+            
+            return R"({"success":true,"message":"Registration successful","userId":100})";
+        }
+        
+        // Workouts
+        else if (path == "/api/workouts" && method == "GET") {
+            return JsonUtils::createSuccess(R"([
+                {"id":1,"name":"Утренняя пробежка","duration":30,"calories":300,"type":"running"},
+                {"id":2,"name":"Силовая тренировка","duration":45,"calories":350,"type":"strength"},
+                {"id":3,"name":"Велосипед","duration":60,"calories":480,"type":"cycling"}
+            ])");
+        }
+        
+        // Stats
+        else if (path == "/api/stats" && method == "GET") {
+            return JsonUtils::createSuccess(R"({
+                "activeWorkouts":12,
+                "caloriesBurned":3842,
+                "monthProgress":75,
+                "totalDistance":42.5
+            })");
+        }
+        
+        // Goals
+        else if (path == "/api/goals" && method == "GET") {
+            return JsonUtils::createSuccess(R"([
+                {"id":1,"text":"Пробежать 5 км без остановки","completed":false},
+                {"id":2,"text":"30 отжиманий за подход","completed":true},
+                {"id":3,"text":"Сбросить 5 кг к декабрю","completed":false}
+            ])");
+        }
+        
+        else {
+            return JsonUtils::createError("Endpoint not found");
+        }
+    }
+
+    void handleClient(int clientSocket) {
+        char buffer[4096];
+        int bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+        
+        if (bytesRead > 0) {
+            buffer[bytesRead] = '\0';
             std::string request(buffer);
             
-            std::string method, path, body;
-            std::map<std::string, std::string> headers;
+            // Парсинг запроса
+            std::istringstream stream(request);
+            std::string method, path, protocol;
+            stream >> method >> path >> protocol;
             
-            parseRequest(request, method, path, headers, body);
+            // Простой парсинг
+            std::string line;
+            std::string body;
+            while (std::getline(stream, line) && line != "\r") {
+                // Пропускаем заголовки
+            }
             
-            std::cout << "Request: " << method << " " << path << std::endl;
+            // Читаем оставшееся как тело
+            std::getline(stream, body, '\0');
             
             std::string response;
             
-            // Проверяем API эндпоинты
-            if (handlers.find(path) != handlers.end()) {
-                response = handlers[path](method, headers, body);
-            } 
-            // Статические файлы
-            else if (path == "/" || path.find(".") != std::string::npos) {
-                response = serveStaticFile(path);
+            // API запросы
+            if (path.find("/api/") == 0) {
+                response = createResponse(200, "application/json", 
+                    handleApiRequest(method, path, body));
             }
-            // API endpoint не найден
+            // Статические файлы
             else {
-                response = DataAdapter::createErrorResponse("Not Found");
+                std::string filePath = publicDir + (path == "/" ? "/index.html" : path);
+                std::string content = readFile(filePath);
+                
+                if (!content.empty()) {
+                    response = createResponse(200, getContentType(filePath), content);
+                } else {
+                    // Демо HTML если файла нет
+                    std::string demoHtml = R"(<!DOCTYPE html>
+<html>
+<head><title>PlaySport</title></head>
+<body>
+    <h1>PlaySport Backend</h1>
+    <p>Server is running!</p>
+    <p>Use API endpoints:</p>
+    <ul>
+        <li>GET /api/workouts</li>
+        <li>GET /api/stats</li>
+        <li>GET /api/goals</li>
+        <li>POST /api/login</li>
+    </ul>
+</body>
+</html>)";
+                    response = createResponse(200, "text/html", demoHtml);
+                }
             }
             
             send(clientSocket, response.c_str(), response.length(), 0);
         }
         
+#ifdef _WIN32
         closesocket(clientSocket);
+#else
+        close(clientSocket);
+#endif
     }
-    
+
     void run() {
         while (running) {
             sockaddr_in clientAddr;
-            int clientAddrSize = sizeof(clientAddr);
+            socklen_t clientAddrLen = sizeof(clientAddr);
             
-            SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
+#ifdef _WIN32
+            SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrLen);
             if (clientSocket == INVALID_SOCKET) {
-                if (running) {
-                    std::cerr << "Accept failed: " << WSAGetLastError() << std::endl;
-                }
+                if (running) std::cerr << "Accept failed" << std::endl;
                 break;
             }
+#else
+            int clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrLen);
+            if (clientSocket < 0) {
+                if (running) std::cerr << "Accept failed" << std::endl;
+                break;
+            }
+#endif
             
-            // Обработка клиента в отдельном потоке
-            std::thread clientThread(&HttpServer::handleClient, this, clientSocket);
-            clientThread.detach();
+            taskQueue.enqueue([this, clientSocket]() {
+                handleClient(clientSocket);
+            });
         }
     }
 };
 
-// ГЛАВНАЯ ПРОГРАММА 
-
+// =========== MAIN ===========
 int main() {
+    std::cout << "========================================\n";
     std::cout << "       PLAYSPORT BACKEND SYSTEM\n";
-    
-    // Демонстрация паттернов
-    std::cout << "Демонстрация паттернов проектирования:\n\n";
-    
-    // 1. Singleton
-    std::cout << "1. SINGLETON Pattern:\n";
-    Config* config = Config::getInstance();
-    std::cout << "   Port: " << config->get("port") << "\n";
-    
-    // 2. Factory
-    std::cout << "2. FACTORY Pattern:\n";
-    Workout running = WorkoutFactory::createRunning(30);
-    std::cout << "   Created workout: " << running.toJson() << "\n";
-    
-    // 3. Observer
-    std::cout << "3. OBSERVER Pattern:\n";
-    NotificationService& notifier = NotificationService::getInstance();
-    notifier.subscribe([](const std::string& event, const std::string& data) {
-        std::cout << "   Event: " << event << ", Data: " << data << "\n";
-    });
-    notifier.notify("system_start", "PlaySport backend started");
-    
-    // 4. Strategy
-    std::cout << "4. STRATEGY Pattern:\n";
-    JwtStrategy jwtStrategy;
-    std::cout << "   JWT Auth valid: " << (jwtStrategy.authenticate("Bearer token123") ? "YES" : "NO") << "\n";
-    
-    // 5. Producer-Consumer
-    std::cout << "5. PRODUCER-CONSUMER Pattern:\n";
-    TaskQueue queue(2);
-    queue.enqueue([]() {
-        std::cout << "   [TASK] Processing workout data...\n";
-    });
-    
-    // 6. Adapter
-    std::cout << "6. ADAPTER Pattern:\n";
-    std::string adapted = DataAdapter::toFrontendFormat("{\"test\":\"data\"}");
-    std::cout << "   Adapted data: " << adapted.substr(0, 50) << "...\n";
-    
-    // 7. Facade
-    std::cout << "7. FACADE Pattern:\n";
-    ApiFacade apiFacade;
-    std::cout << "   API Facade created\n";
-    
-    // 8. MVC
-    std::cout << "8. MVC Pattern:\n";
-    UserController userController;
-    std::cout << "   UserController created\n\n";
-    
-    // Создаем HTTP сервер
-    std::cout << "Запуск HTTP сервера...\n";
-    
-    HttpServer server(8080, "public");
-    
-    // Запускаем сервер
-    server.start();
-    
-    std::cout << "Сервер запущен!\n";
-    std::cout << "Откройте в браузере: http://localhost:8080\n\n";
-    std::cout << "Доступные API endpoints:\n";
-    std::cout << "  GET  /api/workouts  - Получить тренировки\n";
-    std::cout << "  GET  /api/stats     - Получить статистику\n";
-    std::cout << "  GET  /api/goals     - Получить цели\n";
-    std::cout << "  GET  /api/users     - Получить пользователей\n";
-    std::cout << "  POST /api/login     - Вход в систему\n";
-    std::cout << "  POST /api/register  - Регистрация\n";
     std::cout << "========================================\n\n";
     
-    std::cout << "Нажмите Enter для остановки сервера...\n";
+    Config* config = Config::getInstance();
+    HttpServer server(config->getPort());
+    
+    // Создаем папку public
+#ifdef _WIN32
+    system("mkdir public 2>nul");
+#else
+    system("mkdir -p public");
+#endif
+    
+    server.start();
+    
+    std::cout << "\nServer running on http://localhost:" << config->getPort() << "\n";
+    std::cout << "Press Enter to stop...\n";
+    
     std::cin.get();
-    
     server.stop();
-    std::cout << "Сервер остановлен.\n";
     
+    std::cout << "Server stopped.\n";
     return 0;
 }

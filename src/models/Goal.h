@@ -1,11 +1,10 @@
 #ifndef GOAL_H
 #define GOAL_H
 
-#include "ModelFactory.h"
 #include <string>
 #include <vector>
 
-class Goal : public ModelBase {
+class Goal {
 private:
     int id;
     std::string text;
@@ -32,8 +31,8 @@ public:
     
     void toggle();
     
-    std::string toJson() const override;
-    void fromJson(const std::string& json) override;
+    std::string toJson() const;
+    void fromJson(const std::string& json);
 };
 
 #endif // GOAL_H

@@ -1,19 +1,21 @@
 #include "AuthController.h"
-#include "../models/User.h"
-#include "../services/AuthService.h"
 #include <sstream>
 
 std::string AuthController::login(const std::string& email, const std::string& password) {
-    User user = User::getByEmail(email);
-    
     std::stringstream response;
     response << "{";
     
-    if (user.verifyPassword(password)) {
-        std::string token = AuthService::generateToken(user.getId());
+    // Демо-авторизация
+    if (email == "test@example.com" && password == "password") {
         response << "\"success\":true,";
-        response << "\"token\":\"" << token << "\",";
-        response << "\"user\":" << user.toJson();
+        response << "\"token\":\"ps_token_123456\",";
+        response << "\"user\":{";
+        response << "\"id\":1,";
+        response << "\"name\":\"Иван Петров\",";
+        response << "\"email\":\"test@example.com\",";
+        response << "\"activeWorkouts\":5,";
+        response << "\"totalCalories\":2450";
+        response << "}";
     } else {
         response << "\"success\":false,";
         response << "\"error\":\"Invalid credentials\"";
@@ -28,26 +30,15 @@ std::string AuthController::registerUser(const std::string& name, const std::str
     std::stringstream response;
     response << "{";
     
-    // Проверка существования пользователя
-    User existingUser = User::getByEmail(email);
-    if (!existingUser.getEmail().empty()) {
-        response << "\"success\":false,";
-        response << "\"error\":\"User already exists\"";
+    // Демо-регистрация
+    if (!email.empty() && !password.empty()) {
+        response << "\"success\":true,";
+        response << "\"message\":\"Registration successful\",";
+        response << "\"userId\":100,";
+        response << "\"email\":\"" << email << "\"";
     } else {
-        User newUser;
-        newUser.setName(name);
-        newUser.setEmail(email);
-        newUser.setPassword(password);
-        
-        if (newUser.save()) {
-            std::string token = AuthService::generateToken(newUser.getId());
-            response << "\"success\":true,";
-            response << "\"token\":\"" << token << "\",";
-            response << "\"user\":" << newUser.toJson();
-        } else {
-            response << "\"success\":false,";
-            response << "\"error\":\"Registration failed\"";
-        }
+        response << "\"success\":false,";
+        response << "\"error\":\"All fields are required\"";
     }
     
     response << "}";
@@ -55,8 +46,6 @@ std::string AuthController::registerUser(const std::string& name, const std::str
 }
 
 std::string AuthController::logout(int userId) {
-    AuthService::invalidateToken(userId);
-    
     std::stringstream response;
     response << "{";
     response << "\"success\":true,";
@@ -66,19 +55,16 @@ std::string AuthController::logout(int userId) {
 }
 
 std::string AuthController::getUserProfile(int userId) {
-    User user = User::getById(userId);
-    
     std::stringstream response;
     response << "{";
-    
-    if (user.getId() > 0) {
-        response << "\"success\":true,";
-        response << "\"user\":" << user.toJson();
-    } else {
-        response << "\"success\":false,";
-        response << "\"error\":\"User not found\"";
-    }
-    
+    response << "\"success\":true,";
+    response << "\"user\":{";
+    response << "\"id\":" << userId << ",";
+    response << "\"name\":\"Иван Петров\",";
+    response << "\"email\":\"test@example.com\",";
+    response << "\"activeWorkouts\":5,";
+    response << "\"totalCalories\":2450";
+    response << "}";
     response << "}";
     return response.str();
 }

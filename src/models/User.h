@@ -1,12 +1,11 @@
 #ifndef USER_H
 #define USER_H
 
-#include "ModelFactory.h"
 #include <string>
 #include <vector>
-#include <ctime>
+#include <functional>
 
-class User : public ModelBase {
+class User {
 private:
     int id;
     std::string name;
@@ -26,7 +25,7 @@ public:
     bool update();
     bool remove();
     
-    // Геттеры и сеттеры
+    // Геттеры
     int getId() const { return id; }
     std::string getName() const { return name; }
     std::string getEmail() const { return email; }
@@ -34,6 +33,7 @@ public:
     int getActiveWorkouts() const { return activeWorkouts; }
     int getTotalCalories() const { return totalCalories; }
     
+    // Сеттеры
     void setId(int i) { id = i; }  
     void setName(const std::string& n) { name = n; }
     void setEmail(const std::string& e) { email = e; }
@@ -43,8 +43,8 @@ public:
     
     bool verifyPassword(const std::string& password) const;
     
-    std::string toJson() const override;
-    void fromJson(const std::string& json) override;
+    std::string toJson() const;
+    void fromJson(const std::string& json);
     
 private:
     std::string hashPassword(const std::string& password) const;

@@ -5,7 +5,6 @@
 
 class AuthController {
 public:
-    // Обработка запросов аутентификации
     static std::string login(const std::string& email, const std::string& password);
     static std::string registerUser(const std::string& name, const std::string& email, 
                                    const std::string& password);

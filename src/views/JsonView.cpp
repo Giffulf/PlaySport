@@ -7,9 +7,7 @@ std::string JsonView::render(const std::map<std::string, std::string>& data) {
     
     bool first = true;
     for (const auto& pair : data) {
-        if (!first) {
-            json << ",";
-        }
+        if (!first) json << ",";
         json << "\"" << pair.first << "\":\"" << pair.second << "\"";
         first = false;
     }
@@ -38,9 +36,7 @@ std::string JsonView::success(const std::string& message, const std::map<std::st
         json << ",";
         bool first = true;
         for (const auto& pair : data) {
-            if (!first) {
-                json << ",";
-            }
+            if (!first) json << ",";
             json << "\"" << pair.first << "\":\"" << pair.second << "\"";
             first = false;
         }
