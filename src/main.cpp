@@ -18,9 +18,9 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-// ==================== ПАТТЕРНЫ ПРОЕКТИРОВАНИЯ ====================
+// ПАТТЕРНЫ ПРОЕКТИРОВАНИЯ 
 
-// === 1. SINGLETON (Одиночка) ===
+// 1. SINGLETON (Одиночка) 
 class Config {
 private:
     static Config* instance;
@@ -54,7 +54,7 @@ public:
 Config* Config::instance = nullptr;
 std::mutex Config::mutex;
 
-// === 2. FACTORY (Фабрика) ===
+// 2. FACTORY (Фабрика)
 class Workout {
 private:
     int id;
@@ -115,7 +115,7 @@ public:
     }
 };
 
-// === 3. OBSERVER (Наблюдатель) ===
+// 3. OBSERVER (Наблюдатель)
 class NotificationService {
 private:
     std::vector<std::function<void(const std::string&, const std::string&)>> observers;
@@ -140,7 +140,7 @@ public:
     }
 };
 
-// === 4. STRATEGY (Стратегия) ===
+// 4. STRATEGY (Стратегия)
 class AuthStrategy {
 public:
     virtual ~AuthStrategy() = default;
@@ -170,7 +170,7 @@ public:
     }
 };
 
-// === 5. PRODUCER-CONSUMER (Производитель-Потребитель) ===
+// 5. PRODUCER-CONSUMER (Производитель-Потребитель) 
 class TaskQueue {
 private:
     std::queue<std::function<void()>> tasks;
@@ -218,7 +218,7 @@ public:
     }
 };
 
-// === 6. ADAPTER (Адаптер) ===
+// 6. ADAPTER (Адаптер)
 class DataAdapter {
 public:
     static std::string toFrontendFormat(const std::string& backendData, bool success = true) {
@@ -263,7 +263,7 @@ private:
     }
 };
 
-// === 7. FACADE (Фасад) ===
+// 7. FACADE (Фасад) 
 class ApiFacade {
 private:
     Config* config;
@@ -387,7 +387,7 @@ private:
     }
 };
 
-// === 8. MVC (Model-View-Controller) ===
+// 8. MVC (Model-View-Controller) 
 class UserModel {
 private:
     int id;
@@ -439,7 +439,7 @@ public:
     }
 };
 
-// ==================== HTTP СЕРВЕР ====================
+// HTTP СЕРВЕР 
 
 class HttpServer {
 private:
@@ -723,12 +723,10 @@ private:
     }
 };
 
-// ==================== ГЛАВНАЯ ПРОГРАММА ====================
+// ГЛАВНАЯ ПРОГРАММА 
 
 int main() {
-    std::cout << "========================================\n";
     std::cout << "       PLAYSPORT BACKEND SYSTEM\n";
-    std::cout << "========================================\n\n";
     
     // Демонстрация паттернов
     std::cout << "Демонстрация паттернов проектирования:\n\n";
@@ -779,7 +777,6 @@ int main() {
     std::cout << "   UserController created\n\n";
     
     // Создаем HTTP сервер
-    std::cout << "========================================\n";
     std::cout << "Запуск HTTP сервера...\n";
     
     HttpServer server(8080, "public");

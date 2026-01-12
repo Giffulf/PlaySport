@@ -13,7 +13,7 @@ std::string AuthService::generateToken(int userId) {
     std::stringstream token;
     token << "ps_token_" << userId << "_" << time(0) << "_" << dis(gen);
     
-    // Хэшируем токен (упрощенно)
+    // Хэшируем токен 
     std::string tokenStr = token.str();
     activeTokens[tokenStr] = userId;
     

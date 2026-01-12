@@ -34,7 +34,7 @@ public:
     int getActiveWorkouts() const { return activeWorkouts; }
     int getTotalCalories() const { return totalCalories; }
     
-    void setId(int i) { id = i; }  // <-- ДОБАВИТЬ
+    void setId(int i) { id = i; }  
     void setName(const std::string& n) { name = n; }
     void setEmail(const std::string& e) { email = e; }
     void setPassword(const std::string& password);

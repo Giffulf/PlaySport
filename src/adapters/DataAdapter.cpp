@@ -5,11 +5,10 @@
 std::map<std::string, std::string> DataAdapter::jsonToMap(const std::string& json) {
     std::map<std::string, std::string> result;
     
-    // Простой парсинг JSON (в реальном проекте используйте библиотеку)
+    // Простой парсинг JSON 
     size_t pos = 0;
     std::string cleanJson = json;
     
-    // Убираем пробелы и переносы строк
     cleanJson.erase(std::remove(cleanJson.begin(), cleanJson.end(), ' '), cleanJson.end());
     cleanJson.erase(std::remove(cleanJson.begin(), cleanJson.end(), '\n'), cleanJson.end());
     
@@ -25,7 +24,6 @@ std::map<std::string, std::string> DataAdapter::jsonToMap(const std::string& jso
             std::string key = pair.substr(0, colonPos);
             std::string value = pair.substr(colonPos + 1);
             
-            // Убираем кавычки
             if (key.front() == '"') key.erase(0, 1);
             if (key.back() == '"') key.pop_back();
             if (value.front() == '"') value.erase(0, 1);

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
-#include <functional> // для std::hash
+#include <functional> 
 
 User::User() : id(0), activeWorkouts(0), totalCalories(0) {
     time_t now = time(0);
@@ -47,7 +47,7 @@ void User::setPassword(const std::string& password) {
 }
 
 std::string User::hashPassword(const std::string& password) const {
-    // Простая хэш-функция без OpenSSL
+    // Простая хэш-функция
     std::hash<std::string> hasher;
     size_t hash = hasher(password + "play_sport_salt");
     

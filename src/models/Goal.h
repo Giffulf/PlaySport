@@ -25,7 +25,7 @@ public:
     bool isCompleted() const { return completed; }
     int getUserId() const { return userId; }
     
-    void setId(int i) { id = i; }  // <-- ДОБАВИТЬ
+    void setId(int i) { id = i; }  
     void setText(const std::string& t) { text = t; }
     void setCompleted(bool c) { completed = c; }
     void setUserId(int uid) { userId = uid; }

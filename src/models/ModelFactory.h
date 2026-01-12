@@ -1,4 +1,3 @@
-// src/models/ModelFactory.h
 #ifndef MODEL_FACTORY_H
 #define MODEL_FACTORY_H
 
