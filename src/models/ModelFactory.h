@@ -2,14 +2,33 @@
 #define MODEL_FACTORY_H
 
 #include <memory>
+#include "User.h"
+#include "Workout.h"
+#include "Goal.h"
 
-// Простые фабричные методы без сложной иерархии
+// Интерфейс для моделей
+class ModelBase {
+public:
+    virtual ~ModelBase() = default;
+    virtual std::string toJson() const = 0;
+    virtual void fromJson(const std::string& json) = 0;
+};
+
+// Фабрика моделей (Factory Pattern)
 class ModelFactory {
 public:
-    template<typename T>
-    static std::unique_ptr<T> create() {
-        return std::make_unique<T>();
-    }
+    enum ModelType {
+        USER_MODEL,
+        WORKOUT_MODEL,
+        GOAL_MODEL
+    };
+    
+    static std::unique_ptr<ModelBase> createModel(ModelType type);
+    
+    // Простые фабричные методы
+    static User* createUser();
+    static Workout* createWorkout();
+    static Goal* createGoal();
 };
 
 #endif // MODEL_FACTORY_H

@@ -13,7 +13,24 @@ endif()
 # Основной исполняемый файл
 add_executable(playsport 
     src/main.cpp
+    src/adapters/DataAdapter.cpp
+    src/config/Config.cpp
+    src/controllers/AuthController.cpp
+    src/controllers/UserController.cpp
+    src/controllers/WorkoutController.cpp
+    src/controllers/MainController.cpp
+    src/models/User.cpp
+    src/models/Workout.cpp
+    src/models/Goal.cpp
+    src/models/ModelFactory.cpp
+    src/views/JsonView.cpp
+    src/strategies/AuthStrategy.cpp
+    src/services/AuthService.cpp
+    src/services/NotificationService.cpp
+    src/services/TaskQueue.cpp
 )
+
+target_include_directories(playsport PRIVATE src)
 
 # Подключаем библиотеки
 if(WIN32)

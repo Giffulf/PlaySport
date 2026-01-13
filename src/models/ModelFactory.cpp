@@ -1,29 +1,19 @@
 #include "ModelFactory.h"
-#include "User.h"
-#include "Workout.h"
-#include "Goal.h"
 
+// Простая реализация фабрики
 std::unique_ptr<ModelBase> ModelFactory::createModel(ModelType type) {
-    switch (type) {
-        case USER_MODEL:
-            return std::make_unique<User>();
-        case WORKOUT_MODEL:
-            return std::make_unique<Workout>();
-        case GOAL_MODEL:
-            return std::make_unique<Goal>();
-        default:
-            return nullptr;
-    }
+    return nullptr; // В этой версии не используем сложную фабрику
 }
 
-std::unique_ptr<User> ModelFactory::createUser() {
-    return std::make_unique<User>();
+// Простые фабричные методы
+User* ModelFactory::createUser() {
+    return new User();
 }
 
-std::unique_ptr<Workout> ModelFactory::createWorkout() {
-    return std::make_unique<Workout>();
+Workout* ModelFactory::createWorkout() {
+    return new Workout();
 }
 
-std::unique_ptr<Goal> ModelFactory::createGoal() {
-    return std::make_unique<Goal>();
+Goal* ModelFactory::createGoal() {
+    return new Goal();
 }
