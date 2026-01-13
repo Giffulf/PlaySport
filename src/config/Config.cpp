@@ -48,9 +48,8 @@ void Config::set(const std::string& key, const std::string& value) {
 }
 
 int Config::getPort() const {
-    // Создаем временную копию для вызова не-const метода
-    Config* nonConstThis = const_cast<Config*>(this);
-    return std::stoi(nonConstThis->get("port", "8080"));
+    auto it = settings.find("port");
+    return it != settings.end() ? std::stoi(it->second) : 8080;
 }
 
 std::string Config::getDatabasePath() const {
